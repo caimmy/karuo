@@ -22,8 +22,8 @@ def getTimedRotatingLogger(filename, when="d", interval=1, backupCount=30):
     # 添加TimedRotatingFileHandler
     # 定义一个1秒换一次log文件的handler
     # 保留3个旧log文件
-    rf_handler = logging.handlers.TimedRotatingFileHandler(filename="logs/app.log", when='d', interval=1,
-                                                           backupCount=30)
+    rf_handler = logging.handlers.TimedRotatingFileHandler(filename=filename, when=when, interval=interval,
+                                                           backupCount=backupCount)
     rf_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(filename)s[:%(lineno)d] - %(message)s"))
 
     # 在控制台打印日志

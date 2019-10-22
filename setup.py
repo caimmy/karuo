@@ -14,7 +14,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="karuo",
-    version="0.1.0",
+    version="0.1.1",
     keywords=("helpers", "tools", "widgets"),
     description="collection of tools",
     long_description="collection of tools",
