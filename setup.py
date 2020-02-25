@@ -11,10 +11,11 @@ Change Activity:
 -------------------------------------------------
 """
 from setuptools import setup, find_packages
+from karuo import __VERSION__
 
 setup(
     name="karuo",
-    version="0.1.5",
+    version=__VERSION__,
     keywords=["helpers", "tools", "widgets"],
     description="collection of some tools",
     long_description="collection of tools",
