@@ -34,3 +34,10 @@ class HelperTest(TestCase):
         t1, t2 = DatetimeHelper.day_range_of_timestamp(tStartDate, tStartDate)
         self.assertEqual("2020-02-13 00:00:00", datetime.datetime.fromtimestamp(t1).strftime("%Y-%m-%d %H:%M:%S"))
         self.assertEqual("2020-02-14 00:00:00", datetime.datetime.fromtimestamp(t2).strftime("%Y-%m-%d %H:%M:%S"))
+
+    def testDatelist(self):
+        ret_date_list = DatetimeHelper.date_list("2019-01-01", "2019-02-01")
+        self.assertEqual(len(ret_date_list), 31)
+        ret_date_list = DatetimeHelper.date_list("2019-01-01", "2019-02-01", True)
+        print(ret_date_list)
+        self.assertEqual(len(ret_date_list), 32)

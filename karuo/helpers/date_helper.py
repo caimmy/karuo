@@ -44,3 +44,26 @@ class DatetimeHelper:
         else:
             raise ValueError("params must be instance of datetime")
 
+    @staticmethod
+    def date_list(start_date: str, end_date: str, include_enddate=False) -> list:
+        """
+        通过起始日期和结束日期两个参数，获取一个从起始日期到结束日期的日期列表，按日填充
+        :param start_date: 起始日期
+        :param end_date: 结束日期
+        :param include_enddate: 返回的列表中是否包含结束日期，默认不包含
+        :return:
+        """
+        ret_date_list = []
+        _start_datetime = datetime.strptime(start_date, "%Y-%m-%d")
+        _end_datetime = datetime.strptime(end_date, "%Y-%m-%d")
+        if _start_datetime < _end_datetime:
+            _cur_timestamp = _start_datetime.timestamp()
+            _flag_timestamp = _end_datetime.timestamp()
+            while _cur_timestamp < _flag_timestamp:
+                _cur_datetime = datetime.fromtimestamp(_cur_timestamp)
+                ret_date_list.append(_cur_datetime.strftime("%Y-%m-%d"))
+                _cur_timestamp = (_cur_datetime + timedelta(days=1)).timestamp()
+            if include_enddate: ret_date_list.append(end_date)
+        else:
+            raise ValueError("end_date must greater than start_date")
+        return ret_date_list
