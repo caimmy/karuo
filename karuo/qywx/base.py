@@ -16,6 +16,7 @@ import pickle
 import json
 import tempfile
 import requests
+import urllib
 from .WXBizMsgCrypt import WXBizMsgCrypt
 
 def _refreshAccessToken(corpid: str, corpsecret: str):
@@ -131,8 +132,20 @@ class QywxClient(_QywxBase):
         """
         构造oauth认证跳转地址
         """
-        # TODO
-        return ""
+        ret_url = ""
+        if url and state:
+            ret_url = f"https://open.weixin.qq.com/connect/oauth2/authorize?appid={self._corpid}&redirect_uri={urllib.parse.quote(url)}&response_type=code&scope=snsapi_base&state={state}#wechat_redirect"
+        return ret_url
+
+    def OauthGetUserInfor(self, code:str):
+        """
+        从oauth认证传递的code置换用户编号
+        """
+        _params = {
+            "code": code
+        }
+        return self.getRequest("https://qyapi.weixin.qq.com/cgi-bin/user/getuserinfo", _params)
+
 
     def UserList(self, department_id: int, fetch_child: int = 0, detail: bool = False):
         """
