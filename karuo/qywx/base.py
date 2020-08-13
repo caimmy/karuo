@@ -16,6 +16,7 @@ import pickle
 import json
 import tempfile
 import requests
+from .WXBizMsgCrypt import WXBizMsgCrypt
 
 def _refreshAccessToken(corpid: str, corpsecret: str):
     """
@@ -116,6 +117,22 @@ class _QywxBase():
         return ret_check, response
 
 class QywxClient(_QywxBase):
+
+    def CallbackEchoStr(self, token:str, aeskey:str, msg_signature:str, timestamp:str, nonce:str, echostr:str) -> str:
+        """
+        设置回调时解密响应口令
+        @return str
+        """
+        wxcpt = WXBizMsgCrypt(token, aeskey, self._corpid)
+        ret, sEchoStr = wxcpt.VerifyURL(msg_signature, timestamp, nonce, echostr)
+        return sEchoStr if 0 == ret else None
+
+    def OauthRedirectUrl(self, url:str, state:str)->str:
+        """
+        构造oauth认证跳转地址
+        """
+        # TODO
+        return ""
 
     def UserList(self, department_id: int, fetch_child: int = 0, detail: bool = False):
         """
