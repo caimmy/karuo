@@ -41,7 +41,8 @@ class SHA1:
         @return: 安全签名
         """
         try:
-            sortlist = [token, timestamp, nonce, encrypt]
+            if isinstance(encrypt, bytes): encrypt = encrypt.decode()
+            sortlist = [token, str(timestamp), str(nonce), encrypt]
             sortlist.sort()
             sha = hashlib.sha1()
             sha.update(("".join(sortlist)).encode("utf-8"))
@@ -109,7 +110,7 @@ class PKCS7Encoder():
             amount_to_pad = self.block_size
         # 获得补位所用的字符
         pad = chr(amount_to_pad)
-        return text + pad * amount_to_pad
+        return text + (pad * amount_to_pad).encode("utf-8")
     
     def decode(self, decrypted):
         """删除解密后明文的补位字符
@@ -139,7 +140,7 @@ class Prpcrypt(object):
         @return: 加密得到的字符串
         """      
         # 16位随机字符串添加到明文开头
-        text = self.get_random_str() + struct.pack("I",socket.htonl(len(text))) + text + receiveid
+        text = self.get_random_str() + struct.pack("I",socket.htonl(len(text.encode()))) + text.encode("utf-8") + receiveid.encode("utf-8")
         # 使用自定义的填充方式对明文进行补位填充
         pkcs7 = PKCS7Encoder()
         text = pkcs7.encode(text)
@@ -186,9 +187,9 @@ class Prpcrypt(object):
         """ 随机生成16位字符串
         @return: 16位字符串
         """ 
-        rule = string.letters + string.digits
+        rule = string.ascii_letters  + string.digits
         str = random.sample(rule, 16)
-        return "".join(str)
+        return "".join(str).encode("utf-8")
         
 class WXBizMsgCrypt(object):
     #构造函数
@@ -240,7 +241,7 @@ class WXBizMsgCrypt(object):
         if ret != 0: 
             return ret,None 
         xmlParse = XMLParse()  
-        return ret,xmlParse.generate(encrypt, signature, timestamp, sNonce)  
+        return ret,xmlParse.generate(encrypt.decode(), signature, timestamp, sNonce)  
 
     def DecryptMsg(self, sPostData, sMsgSignature, sTimeStamp, sNonce):
         # 检验消息的真实性，并且获取解密后的明文

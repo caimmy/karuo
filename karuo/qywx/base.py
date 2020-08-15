@@ -17,7 +17,9 @@ import json
 import tempfile
 import requests
 import urllib
-from .WXBizMsgCrypt import WXBizMsgCrypt
+from random import randint
+from .WXBizMsgCrypt import WXBizMsgCrypt, SHA1
+
 
 def _refreshAccessToken(corpid: str, corpsecret: str):
     """
@@ -32,12 +34,14 @@ def _refreshAccessToken(corpid: str, corpsecret: str):
             _access_token = response_data.get("access_token")
             _expires_in = response_data.get("expires_in")
             # 设置过期时间，比正常时间提前5分钟
-            _exp_timestamp = int(time.time()) + (_expires_in - 300 if _expires_in > 300 else _expires_in)
+            _exp_timestamp = int(
+                time.time()) + (_expires_in - 300 if _expires_in > 300 else _expires_in)
             return {
                 "exptm": _exp_timestamp,
                 "access_token": _access_token
             }
     return None
+
 
 def GetAccessToken(corpid: str, corpsecret: str):
     """
@@ -69,17 +73,23 @@ def GetAccessToken(corpid: str, corpsecret: str):
                 pickle.dump(_refresh_data, wf)
     return ret_token, ret_expiretm
 
+
 class _QywxBase():
-    def __init__(self, corpid: str, corpsecret: str):
+    def __init__(self, corpid: str, corpsecret: str, agentid:str="", token:str="", aeskey:str=""):
         self._corpid = corpid
         self._corpsecret = corpsecret
+        self._agentid = agentid
+        self._token = token
+        self._aeskey = aeskey
         # 初始化访问口令及访问口令过期时间
-        self._access_token, self._token_exptm = GetAccessToken(self._corpid, self._corpsecret)
+        self._access_token, self._token_exptm = GetAccessToken(
+            self._corpid, self._corpsecret)
 
     def _getAccessToken(self):
         if int(time.time()) > self._token_exptm or not self._access_token:
             # 如果口令过期或者没有口令，则通过服务器刷新
-            self._access_token, self._token_exptm = GetAccessToken(self._corpid, self._corpsecret)
+            self._access_token, self._token_exptm = GetAccessToken(
+                self._corpid, self._corpsecret)
         return self._access_token
 
     def postRequest(self, url: str, params: dict):
@@ -90,7 +100,8 @@ class _QywxBase():
         """
         _url = f"{url}?access_token={self._getAccessToken()}"
         try:
-            _response = requests.post(_url, bytes(json.dumps(params, ensure_ascii=False), "utf-8"))
+            _response = requests.post(_url, bytes(
+                json.dumps(params, ensure_ascii=False), "utf-8"))
             if _response.ok:
                 ret_data = _response.json()
                 return self._checkReponse(ret_data)
@@ -107,28 +118,69 @@ class _QywxBase():
         except Exception as e:
             return False, str(e)
 
-
     def _checkReponse(self, response):
         """
         检查API调用结果
         :param response:
         :return:
         """
-        ret_check = True if "errcode" in response and 0 == response.get("errcode") else False
+        ret_check = True if "errcode" in response and 0 == response.get(
+            "errcode") else False
         return ret_check, response
+
+    def _loadSendmsgParams(self, agentid: str, msgtype: str, args: dict) -> dict:
+        """
+        针对发送消息请求，构造基本请求参数
+        """
+        touser = args.get("touser") if "touser" in args else []
+        toparty = args.get("toparty") if "toparty" in args else []
+        totag = args.get("totag") if "totag" in args else []
+        safe = args.get("safe") if "safe" in args else 0
+        _params = {
+            "touser": "|".join(touser),
+            "toparty": "|".join(toparty),
+            "totag": "|".join(totag),
+            "msgtype": msgtype,
+            "agentid": agentid,
+            "safe": safe,
+            "enable_id_trans": 0,
+            "enable_duplicate_check": 0,
+            "duplicate_check_interval": 1800
+        }
+
+        return _params
+
 
 class QywxClient(_QywxBase):
 
-    def CallbackEchoStr(self, token:str, aeskey:str, msg_signature:str, timestamp:str, nonce:str, echostr:str) -> str:
+    def CallbackEchoStr(self, token: str, aeskey: str, msg_signature: str, timestamp: str, nonce: str, echostr: str) -> str:
         """
         设置回调时解密响应口令
         @return str
         """
         wxcpt = WXBizMsgCrypt(token, aeskey, self._corpid)
-        ret, sEchoStr = wxcpt.VerifyURL(msg_signature, timestamp, nonce, echostr)
+        ret, sEchoStr = wxcpt.VerifyURL(
+            msg_signature, timestamp, nonce, echostr)
         return sEchoStr if 0 == ret else None
 
-    def OauthRedirectUrl(self, url:str, state:str)->str:
+    def CallbackEchoStrWithGetParams(self, token: str, aeskey: str, getparams: dict):
+        """
+        回调时从dict获取解密参数
+        """
+        return self.CallbackEchoStr(token, aeskey, getparams.get("msg_signature"),
+                                    getparams.get("timestamp"), getparams.get("nonce"), getparams.get("echostr"))
+
+    def GenResponseMessage(self, token:str, aeskey:str, replyMsg:str, nonce:str) -> str:
+        """
+        生成回复消息
+        """
+        wxcpt = WXBizMsgCrypt(token, aeskey, self._corpid)
+        _, ret_encrypt_xml = wxcpt.EncryptMsg(replyMsg, nonce)
+        return ret_encrypt_xml
+        
+
+
+    def OauthRedirectUrl(self, url: str, state: str) -> str:
         """
         构造oauth认证跳转地址
         """
@@ -137,7 +189,16 @@ class QywxClient(_QywxBase):
             ret_url = f"https://open.weixin.qq.com/connect/oauth2/authorize?appid={self._corpid}&redirect_uri={urllib.parse.quote(url)}&response_type=code&scope=snsapi_base&state={state}#wechat_redirect"
         return ret_url
 
-    def OauthGetUserInfor(self, code:str):
+    def SsoQrcodeRedirectUrl(self, agendid: str, url: str, state: str) -> str:
+        """
+        构造SSO登录地址
+        """
+        ret_url = ""
+        if url and state:
+            ret_url = f"https://open.work.weixin.qq.com/wwopen/sso/qrConnect?appid={self._corpid}&agentid={agendid}&redirect_uri={urllib.parse.quote(url)}&state={state}"
+        return ret_url
+
+    def OauthGetUserInfor(self, code: str):
         """
         从oauth认证传递的code置换用户编号
         """
@@ -145,7 +206,6 @@ class QywxClient(_QywxBase):
             "code": code
         }
         return self.getRequest("https://qyapi.weixin.qq.com/cgi-bin/user/getuserinfo", _params)
-
 
     def UserList(self, department_id: int, fetch_child: int = 0, detail: bool = False):
         """
@@ -174,12 +234,13 @@ class QywxClient(_QywxBase):
         _params = {
             "userid": userid
         }
-        ret, response = self.getRequest("https://qyapi.weixin.qq.com/cgi-bin/user/get", _params)
+        ret, response = self.getRequest(
+            "https://qyapi.weixin.qq.com/cgi-bin/user/get", _params)
         if ret:
             return response
         return None
 
-    def UserCreate(self, userid: str, name: str, mobile: str, gender: int, position: str="", telephone: str="", department: int=1, is_leader: int = 0):
+    def UserCreate(self, userid: str, name: str, mobile: str, gender: int, position: str = "", telephone: str = "", department: int = 1, is_leader: int = 0):
         """
         创建企业成员
         :param userid:
@@ -200,7 +261,8 @@ class QywxClient(_QywxBase):
             "department": department,
             "is_leader_in_dept": 1 if is_leader is 1 else 0
         }
-        ret, _ = self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/user/create", _params)
+        ret, _ = self.postRequest(
+            "https://qyapi.weixin.qq.com/cgi-bin/user/create", _params)
         return ret
 
     def UserUpdate(self, userid: str, **kwargs):
@@ -214,7 +276,8 @@ class QywxClient(_QywxBase):
         :param department:
         :return:
         """
-        arg_list = ["name", "mobile", "gender", "position", "telephone", "department", "is_leader"]
+        arg_list = ["name", "mobile", "gender", "position",
+                    "telephone", "department", "is_leader"]
         _params = {
             "userid": userid,
         }
@@ -223,7 +286,8 @@ class QywxClient(_QywxBase):
                 _val = kwargs.get(_prop)
                 _params[_prop] = _val
 
-        ret, response = self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/user/update", _params)
+        ret, response = self.postRequest(
+            "https://qyapi.weixin.qq.com/cgi-bin/user/update", _params)
         return ret, response.get("errmsg")
 
     def UserDelete(self, userid):
@@ -235,7 +299,8 @@ class QywxClient(_QywxBase):
         params = {
             "userid": userid
         }
-        ret, _ = self.getRequest("https://qyapi.weixin.qq.com/cgi-bin/user/delete", params)
+        ret, _ = self.getRequest(
+            "https://qyapi.weixin.qq.com/cgi-bin/user/delete", params)
         return ret
 
     def DepartmentList(self, pid: int = 1):
@@ -247,12 +312,13 @@ class QywxClient(_QywxBase):
         _params = {
             "id": pid
         }
-        ret, response = self.getRequest("https://qyapi.weixin.qq.com/cgi-bin/department/list", _params)
+        ret, response = self.getRequest(
+            "https://qyapi.weixin.qq.com/cgi-bin/department/list", _params)
         if ret:
             return response.get("department")
         return None
 
-    def DepartmentCreate(self, name, parentid:int=1, order: int=0):
+    def DepartmentCreate(self, name, parentid: int = 1, order: int = 0):
         """
         创建部门
         :param name:
@@ -265,7 +331,8 @@ class QywxClient(_QywxBase):
             "parentid": parentid,
             # "order": order
         }
-        ret, response = self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/department/create", _params)
+        ret, response = self.postRequest(
+            "https://qyapi.weixin.qq.com/cgi-bin/department/create", _params)
         if ret:
             return response.get("id")
         return None
@@ -284,7 +351,8 @@ class QywxClient(_QywxBase):
         for _prop in _prop_list:
             if _prop in kwargs:
                 _params[_prop] = kwargs.get(_prop)
-        ret, _ = self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/department/update", _params)
+        ret, _ = self.postRequest(
+            "https://qyapi.weixin.qq.com/cgi-bin/department/update", _params)
         return ret
 
     def DepartmentDelete(self, id):
@@ -296,13 +364,69 @@ class QywxClient(_QywxBase):
         _params = {
             "id": id
         }
-        ret, _ = self.getRequest("https://qyapi.weixin.qq.com/cgi-bin/department/delete", _params)
+        ret, _ = self.getRequest(
+            "https://qyapi.weixin.qq.com/cgi-bin/department/delete", _params)
         return ret
+
+    def MsgSendText(self, agentid: int, content: str, **kwargs):
+        """
+        发送文本消息
+        """
+        _params = self._loadSendmsgParams(agentid, "text", kwargs)
+        _params["text"] = {
+            "content": content
+        }
+
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/message/send", params=_params)
+
+    def MsgSendTextCard(self, agentid: int, title: str, description: str, url: str, btntxt: str = "更多", **kwargs):
+        """
+        发送文本卡片消息
+        """
+        _params = self._loadSendmsgParams(agentid, "textcard", kwargs)
+        _params["textcard"] = {
+            "title": title,
+            "description": description,
+            "url": url,
+            "btntxt": btntxt
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/message/send", params=_params)
+
+    def MsgSendPictureCard(self, agentid: int, title: str, description: str, url: str, picurl: str, **kwargs):
+        """
+        发送图文卡片消息
+        """
+        _params = self._loadSendmsgParams(agentid, "news", kwargs)
+        _params["news"] = {
+            "articles": [
+                {
+                    "title": title,
+                    "description": description,
+                    "url": url,
+                    "picurl": picurl
+                }
+            ]
+        }
+
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/message/send", params=_params)
+
+    def MsgSendMarkdown(self, agentid: int, markdown: str, **kwargs):
+        """
+        发送markdown消息
+        """
+        _params = self._loadSendmsgParams(agentid, "markdown", kwargs)
+        _params["markdown"] = {
+            "content": markdown
+        }
+
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/message/send", params=_params)
+
 
 if "__main__" == __name__:
     # _refreshAccessToken("wx1ac9c673f281add6", "GTTNCSIDw96JP0HqewrRwQ4Jw-7SpWfDAFJb4IoHNCg")
     # GetAccessToken("wx1ac9c673f281add6", "GTTNCSIDw96JP0HqewrRwQ4Jw-7SpWfDAFJb4IoHNCg")
-    client = QywxClient("wx1ac9c673f281add6", "ghmdKl8bQZYS2cyXTTfk9rH4fnzDSBRqMwo0PFzManE")
+    client = QywxClient("wx1ac9c673f281add6",
+                        "ghmdKl8bQZYS2cyXTTfk9rH4fnzDSBRqMwo0PFzManE")
     # client.UserDelete("mardini")
     # client.createDepartment("侧1")
     # print(client.UserList(2, 1, True))
