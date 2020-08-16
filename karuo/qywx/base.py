@@ -19,6 +19,7 @@ import requests
 import urllib
 from random import randint
 from .WXBizMsgCrypt import WXBizMsgCrypt, SHA1
+from .helper import QywxXMLParser, QywxResponseGeneral
 
 
 def _refreshAccessToken(corpid: str, corpsecret: str):
@@ -75,7 +76,7 @@ def GetAccessToken(corpid: str, corpsecret: str):
 
 
 class _QywxBase():
-    def __init__(self, corpid: str, corpsecret: str, agentid:str="", token:str="", aeskey:str=""):
+    def __init__(self, corpid: str, corpsecret: str, agentid: str = "", token: str = "", aeskey: str = ""):
         self._corpid = corpid
         self._corpsecret = corpsecret
         self._agentid = agentid
@@ -152,10 +153,14 @@ class _QywxBase():
 
 
 class QywxClient(_QywxBase):
+    """
+    __init__ (self, corpid: str, corpsecret: str, agentid:str="", token:str="", aeskey:str="")
+    """
 
     def CallbackEchoStr(self, token: str, aeskey: str, msg_signature: str, timestamp: str, nonce: str, echostr: str) -> str:
         """
         设置回调时解密响应口令
+        在设置应用回调地址时使用
         @return str
         """
         wxcpt = WXBizMsgCrypt(token, aeskey, self._corpid)
@@ -170,15 +175,40 @@ class QywxClient(_QywxBase):
         return self.CallbackEchoStr(token, aeskey, getparams.get("msg_signature"),
                                     getparams.get("timestamp"), getparams.get("nonce"), getparams.get("echostr"))
 
-    def GenResponseMessage(self, token:str, aeskey:str, replyMsg:str, nonce:str) -> str:
+    def ParseUploadMessage(self, params: dict, msgbody: str):
+        """
+        解析微信上行到应用服务器的消息
+        @params: dict 验证参数 msg_signature, timestamp, nonce
+        @msgbody: str 待解密消息体 echostr, 
+        """
+        ret_msg_struct = None
+        sha1helper = SHA1()
+        origin_encrypt_msg = QywxXMLParser.parseOriginEncryptMsg(msgbody)
+        ret, check_sig = sha1helper.getSHA1(self._token, params.get(
+            "timestamp"), params.get("nonce"), origin_encrypt_msg.Encrypt)
+        if 0 == ret and check_sig == params.get("msg_signature"):
+            # 提取加密数据字段
+            str_callbackmsg = self.CallbackEchoStr(self._token, self._aeskey, params.get(
+                "msg_signature"), params.get("timestamp"), params.get("nonce"), origin_encrypt_msg.Encrypt)
+            if str_callbackmsg:
+                ret_msg_struct = QywxXMLParser.parseCallbackMessage(
+                    str_callbackmsg)
+        return ret_msg_struct
+    
+    def ResponseTextMessage(self, msg:str, toUser:str, fromUser:str):
+        """
+        回复文本消息
+        """
+        xml_response = QywxResponseGeneral.ResponseXmlForText(toUser, fromUser, msg)
+        return self.GenResponseMessage(xml_response, randint(10000, 99999))
+
+    def GenResponseMessage(self, replyMsg: str, nonce: str) -> str:
         """
         生成回复消息
         """
-        wxcpt = WXBizMsgCrypt(token, aeskey, self._corpid)
+        wxcpt = WXBizMsgCrypt(self._token, self._aeskey, self._corpid)
         _, ret_encrypt_xml = wxcpt.EncryptMsg(replyMsg, nonce)
         return ret_encrypt_xml
-        
-
 
     def OauthRedirectUrl(self, url: str, state: str) -> str:
         """
