@@ -250,10 +250,8 @@ class QywxClient(_QywxBase):
             "fetch_child": fetch_child
         }
         url = "https://qyapi.weixin.qq.com/cgi-bin/user/list" if detail else "https://qyapi.weixin.qq.com/cgi-bin/user/simplelist"
-        ret, response = self.getRequest(url, _params)
-        if ret:
-            return response.get("userlist")
-        return None
+        return self.getRequest(url, _params)
+        
 
     def UserDetail(self, userid: str):
         """
@@ -264,13 +262,10 @@ class QywxClient(_QywxBase):
         _params = {
             "userid": userid
         }
-        ret, response = self.getRequest(
+        return self.getRequest(
             "https://qyapi.weixin.qq.com/cgi-bin/user/get", _params)
-        if ret:
-            return response
-        return None
 
-    def UserCreate(self, userid: str, name: str, mobile: str, gender: int, position: str = "", telephone: str = "", department: int = 1, is_leader: int = 0):
+    def UserCreate(self, userid: str, name: str, mobile: str, email:str, gender: int, position: str = "", telephone: str = "", department: int = 1, is_leader: int = 0):
         """
         创建企业成员
         :param userid:
@@ -285,15 +280,15 @@ class QywxClient(_QywxBase):
             "userid": userid,
             "name": name,
             "mobile": mobile,
+            "email": email,
             "gender": gender,
             "telephone": telephone,
             "position": position,
             "department": department,
             "is_leader_in_dept": 1 if is_leader is 1 else 0
         }
-        ret, _ = self.postRequest(
+        return self.postRequest(
             "https://qyapi.weixin.qq.com/cgi-bin/user/create", _params)
-        return ret
 
     def UserUpdate(self, userid: str, **kwargs):
         """
@@ -316,9 +311,8 @@ class QywxClient(_QywxBase):
                 _val = kwargs.get(_prop)
                 _params[_prop] = _val
 
-        ret, response = self.postRequest(
+        return self.postRequest(
             "https://qyapi.weixin.qq.com/cgi-bin/user/update", _params)
-        return ret, response.get("errmsg")
 
     def UserDelete(self, userid):
         """
@@ -329,9 +323,8 @@ class QywxClient(_QywxBase):
         params = {
             "userid": userid
         }
-        ret, _ = self.getRequest(
+        return self.getRequest(
             "https://qyapi.weixin.qq.com/cgi-bin/user/delete", params)
-        return ret
 
     def DepartmentList(self, pid: int = 1):
         """
@@ -342,11 +335,9 @@ class QywxClient(_QywxBase):
         _params = {
             "id": pid
         }
-        ret, response = self.getRequest(
+        return self.getRequest(
             "https://qyapi.weixin.qq.com/cgi-bin/department/list", _params)
-        if ret:
-            return response.get("department")
-        return None
+        
 
     def DepartmentCreate(self, name, parentid: int = 1, order: int = 0):
         """
@@ -359,13 +350,12 @@ class QywxClient(_QywxBase):
         _params = {
             "name": name,
             "parentid": parentid,
-            # "order": order
         }
-        ret, response = self.postRequest(
+        if isinstance(order, int) and order > 0:
+            _params["order"] = order
+
+        return self.postRequest(
             "https://qyapi.weixin.qq.com/cgi-bin/department/create", _params)
-        if ret:
-            return response.get("id")
-        return None
 
     def DepartmentUpdate(self, id, **kwargs):
         """
@@ -374,16 +364,15 @@ class QywxClient(_QywxBase):
         :param kwargs:
         :return:
         """
-        _prop_list = ["name", "name_en", "parentid"]
+        _prop_list = ["name", "name_en", "parentid", "order"]
         _params = {
             "id": id,
         }
         for _prop in _prop_list:
             if _prop in kwargs:
                 _params[_prop] = kwargs.get(_prop)
-        ret, _ = self.postRequest(
+        return self.postRequest(
             "https://qyapi.weixin.qq.com/cgi-bin/department/update", _params)
-        return ret
 
     def DepartmentDelete(self, id):
         """
@@ -394,9 +383,8 @@ class QywxClient(_QywxBase):
         _params = {
             "id": id
         }
-        ret, _ = self.getRequest(
+        return self.getRequest(
             "https://qyapi.weixin.qq.com/cgi-bin/department/delete", _params)
-        return ret
 
     def MsgSendText(self, agentid: int, content: str, **kwargs):
         """
