@@ -237,6 +237,19 @@ class QywxClient(_QywxBase):
         }
         return self.getRequest("https://qyapi.weixin.qq.com/cgi-bin/user/getuserinfo", _params)
 
+    def CommunicationBook(self):
+        """
+        获取完整的通信录信息
+        同时返回递归的全部部门和成员，分开显示
+        """
+        
+        _d_res, _dep_list = self.DepartmentList()
+        _u_res, _user_list = self.UserList(1, 1, True)
+        if _d_res and _u_res:
+            return True, {"dep": _dep_list, "user": _user_list}
+        else:
+            return False, None
+
     def UserList(self, department_id: int, fetch_child: int = 0, detail: bool = False):
         """
         获取部门成员列表
@@ -451,4 +464,5 @@ if "__main__" == __name__:
     # client.createDepartment("侧1")
     # print(client.UserList(2, 1, True))
     #print(client.DepartmentUpdate(4, name="2号上级"))
-    print(client.DepartmentDelete(5))
+    # print(client.DepartmentDelete(5))
+    client.CommunicationBook()
