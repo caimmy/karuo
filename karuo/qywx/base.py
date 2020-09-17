@@ -20,7 +20,7 @@ import urllib
 from random import randint
 from .WXBizMsgCrypt import WXBizMsgCrypt, SHA1
 from .helper import QywxXMLParser, QywxResponseGeneral
-
+from karuo.helpers.char_helper import ensureString
 
 def _refreshAccessToken(corpid: str, corpsecret: str):
     """
@@ -172,8 +172,8 @@ class QywxClient(_QywxBase):
         """
         回调时从dict获取解密参数
         """
-        return self.CallbackEchoStr(token, aeskey, getparams.get("msg_signature"),
-                                    getparams.get("timestamp"), getparams.get("nonce"), getparams.get("echostr"))
+        return self.CallbackEchoStr(token, aeskey, ensureString(getparams.get("msg_signature")),
+                                    ensureString(getparams.get("timestamp")), ensureString(getparams.get("nonce")), ensureString(getparams.get("echostr")))
 
     def ParseUploadMessage(self, params: dict, msgbody: str):
         """
@@ -454,6 +454,7 @@ class QywxClient(_QywxBase):
 
         return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/message/send", params=_params)
 
+    ######  工作日程相关
 
 if "__main__" == __name__:
     # _refreshAccessToken("wx1ac9c673f281add6", "GTTNCSIDw96JP0HqewrRwQ4Jw-7SpWfDAFJb4IoHNCg")
