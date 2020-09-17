@@ -30,7 +30,54 @@ class OriginCallbackData(xml.sax.ContentHandler):
     def endElement(self, tag):
         self._current_tag = None
 
-class CallbackMessage(xml.sax.ContentHandler):
+
+class BaseCallbackData(xml.sax.ContentHandler):
+    """
+    xml消息或事件回调
+    """
+    def __init__(self):
+        super(BaseCallbackData, self).__init__()
+        self._current_tag = None
+    
+    def startElement(self, tag, attributes):
+        self._current_tag = tag
+
+    def endElement(self, tag):
+        self._current_tag = None
+    
+    def characters(self, content):
+        if self._current_tag:
+            if hasattr(self, self._current_tag):
+                _val = getattr(self, self._current_tag)
+                if isinstance(_val, str):
+                    _val += content
+                    setattr(self, self._current_tag, _val)
+
+class NormalCallbackData(BaseCallbackData):
+    def characters(self, content):
+        if self._current_tag:
+            setattr(self, self._current_tag, content)
+
+class CallbackDataDict(BaseCallbackData):
+
+    def __init__(self):
+        super(CallbackDataDict, self).__init__()
+        self._data = {}
+
+    def characters(self, content):
+        if self._current_tag:
+            self._data[self._current_tag] = content
+
+    def getData(self):
+        return self._data 
+
+    def __getattr__(self, key):
+        if key in self._data:
+            return self._data[key]
+        else:
+            return None
+
+class CallbackMessage(BaseCallbackData):
     """
     回调的消息
     """
@@ -77,22 +124,6 @@ class CallbackMessage(xml.sax.ContentHandler):
         self.ScanResult = ""
 
 
-    
-    def startElement(self, tag, attributes):
-        self._current_tag = tag
-
-    def endElement(self, tag):
-        self._current_tag = None
-    
-    def characters(self, content):
-        if self._current_tag:
-            if hasattr(self, self._current_tag):
-                _val = getattr(self, self._current_tag)
-                if isinstance(_val, str):
-                    _val += content
-                    setattr(self, self._current_tag, _val)
-
-
 class QywxXMLParser():
     @staticmethod
     def parseOriginEncryptMsg(xml_content:str)->OriginCallbackData:
@@ -111,6 +142,12 @@ class QywxXMLParser():
         callback_xml_handler = CallbackMessage()
         xml.sax.parseString(xml_content, callback_xml_handler)
         return callback_xml_handler
+
+    @staticmethod
+    def parseNormalCallbackData(xml_content:str) -> CallbackDataDict:
+        callback_msg_handler = CallbackDataDict()
+        xml.sax.parseString(xml_content, callback_msg_handler)
+        return callback_msg_handler
 
 class QywxResponseGeneral():
     """

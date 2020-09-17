@@ -194,6 +194,24 @@ class QywxClient(_QywxBase):
                 ret_msg_struct = QywxXMLParser.parseCallbackMessage(
                     str_callbackmsg)
         return ret_msg_struct
+
+    def ParseCallbackData(self, params: dict, msgbody: str):
+        """
+        解析微信服务器回调数据
+        """
+        ret_msg_struct = None
+        sha1helper = SHA1()
+        origin_encrypt_msg = QywxXMLParser.parseOriginEncryptMsg(msgbody)
+        ret, check_sig = sha1helper.getSHA1(self._token, params.get(
+            "timestamp"), params.get("nonce"), origin_encrypt_msg.Encrypt)
+        if 0 == ret and check_sig == params.get("msg_signature"):
+            # 提取加密数据字段
+            str_callbackmsg = self.CallbackEchoStr(self._token, self._aeskey, params.get(
+                "msg_signature"), params.get("timestamp"), params.get("nonce"), origin_encrypt_msg.Encrypt)
+            if str_callbackmsg:
+                ret_msg_struct = QywxXMLParser.parseNormalCallbackData(
+                    str_callbackmsg)
+        return ret_msg_struct
     
     def ResponseTextMessage(self, msg:str, toUser:str, fromUser:str):
         """
