@@ -17,6 +17,7 @@ import json
 import tempfile
 import requests
 import urllib
+from urllib.parse import urlencode
 from random import randint
 from .WXBizMsgCrypt import WXBizMsgCrypt, SHA1
 from .helper import QywxXMLParser, QywxResponseGeneral
@@ -472,6 +473,28 @@ class QywxClient(_QywxBase):
 
         return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/message/send", params=_params)
 
+    ######  辅助功能相关
+    
+    def UploadTempMedia(self, filetype, filepath):
+        """
+        上传临时素材
+        """
+        _ret_media_id = None
+        from requests_toolbelt import MultipartEncoder
+        form_data = MultipartEncoder(
+            fields={"filename": ("media", open(filepath, "rb"), "image/png")}
+        )
+        _upload_url = f"https://qyapi.weixin.qq.com/cgi-bin/media/upload?access_token={self._getAccessToken()}&type={filetype}"
+        _upload_res = requests.post(_upload_url, data=form_data, headers={'Content-Type': form_data.content_type})
+        try:
+            _ret_data = _upload_res.json()
+            if 0 == _ret_data.get("errcode"):
+                _ret_media_id = _ret_data.get("media_id")
+        except Exception as e:
+            _ret_media_id = ""
+        return _ret_media_id
+
+
     ######  工作日程相关
 
 if "__main__" == __name__:
@@ -484,4 +507,4 @@ if "__main__" == __name__:
     # print(client.UserList(2, 1, True))
     #print(client.DepartmentUpdate(4, name="2号上级"))
     # print(client.DepartmentDelete(5))
-    client.CommunicationBook()
+    client.UploadTempMedia("image", "/data/duoneng_caimmy/duoneng/bundle/asserts/images/meeting_poster.png")
