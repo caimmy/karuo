@@ -431,6 +431,25 @@ class QywxClient(_QywxBase):
 
         return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/message/send", params=_params)
 
+    def MsgSendImage(self, agentid: int, img_content, **kwargs):
+        """
+        发送图片消息
+        首先调用 [上传临时素材接口] 获取图片的media_id，
+        然后再发送消息
+        """
+        media_id = self.UploadTempMedia("image", content=img_content)
+        if media_id:
+            _params = self._loadSendmsgParams(agentid, "image", kwargs)
+            _params["image"] = {
+                "media_id": media_id
+            }
+            return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/message/send", params=_params)
+        else:
+            return {
+                "errcode": -1,
+                "errmsg": "没有获取到有效的media_id"
+            }
+
     def MsgSendTextCard(self, agentid: int, title: str, description: str, url: str, btntxt: str = "更多", **kwargs):
         """
         发送文本卡片消息
