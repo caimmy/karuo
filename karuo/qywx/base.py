@@ -475,14 +475,16 @@ class QywxClient(_QywxBase):
 
     ######  辅助功能相关
     
-    def UploadTempMedia(self, filetype, filepath):
+    def UploadTempMedia(self, filetype, filepath=None, content=None):
         """
+        :param filepath 图片文件路径
+        :param content 图片文件内容 io.BytesIO
         上传临时素材
         """
         _ret_media_id = None
         from requests_toolbelt import MultipartEncoder
         form_data = MultipartEncoder(
-            fields={"filename": ("media", open(filepath, "rb"), "image/png")}
+            fields={"filename": ("media", open(filepath, "rb") if filepath else content, "image/png")}
         )
         _upload_url = f"https://qyapi.weixin.qq.com/cgi-bin/media/upload?access_token={self._getAccessToken()}&type={filetype}"
         _upload_res = requests.post(_upload_url, data=form_data, headers={'Content-Type': form_data.content_type})
