@@ -297,7 +297,7 @@ class QywxClient(_QywxBase):
         return self.getRequest(
             "https://qyapi.weixin.qq.com/cgi-bin/user/get", _params)
 
-    def UserCreate(self, userid: str, name: str, alias:str, mobile: str, email:str, gender: int, position: str = "", telephone: str = "", department: list = [], is_leader: list = []):
+    def UserCreate(self, userid: str, name: str, alias:str, mobile: str, email:str, gender: int, position: str = "", telephone: str = "", department: list = [], is_leader: list = [], invite=False):
         """
         创建企业成员
         :param userid:
@@ -317,6 +317,7 @@ class QywxClient(_QywxBase):
             "gender": gender,
             "telephone": telephone,
             "position": position,
+            "to_invite": invite
         }
         if len(department) > 0:
             _params["department"] = department
