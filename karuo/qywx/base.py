@@ -210,8 +210,7 @@ class QywxClient(_QywxBase):
             str_callbackmsg = self.CallbackEchoStr(self._token, self._aeskey, params.get(
                 "msg_signature"), params.get("timestamp"), params.get("nonce"), origin_encrypt_msg.Encrypt)
             if str_callbackmsg:
-                ret_msg_struct = QywxXMLParser.parseNormalCallbackData(
-                    str_callbackmsg)
+                ret_msg_struct = QywxXMLParser.parseNormalCallbackData(str_callbackmsg)
         return ret_msg_struct
     
     def ResponseTextMessage(self, msg:str, toUser:str, fromUser:str):

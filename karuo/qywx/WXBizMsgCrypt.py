@@ -195,10 +195,10 @@ class WXBizMsgCrypt(object):
     #构造函数
     def __init__(self,sToken,sEncodingAESKey,sReceiveId):
         try:
-            self.key = base64.b64decode(sEncodingAESKey+"=")  
+            self.key = base64.b64decode(sEncodingAESKey+"=")
             assert len(self.key) == 32
         except:
-            throw_exception("[error]: EncodingAESKey unvalid !", FormatException) 
+            throw_exception("[error]: EncodingAESKey unvalid !", FormatException)
             # return ierror.WXBizMsgCrypt_IllegalAesKey,None
         self.m_sToken = sToken
         self.m_sReceiveId = sReceiveId
