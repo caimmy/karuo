@@ -518,14 +518,9 @@ class QywxClient(_QywxBase):
 
 
     ######  工作日程相关
-
-    def test(self):
-        print("sadfsadf")
-
-    def CreateSchedule(self, agentid, organizer:str, start_time:int, end_time:int, attendees:list, summary:str, description:str, location:str):
+    def CreateSchedule(self, organizer:str, start_time:int, end_time:int, attendees:list, summary:str, description:str, location:str):
         """
         创建日程
-        :param agentid
         :param organizer str 组织者日程
         :param start_time int 日程开始时间戳
         :param end_time int 日程结束时间戳
@@ -540,14 +535,14 @@ class QywxClient(_QywxBase):
                 "start_time": start_time,
                 "end_time": end_time,
                 "attendees": [
-                    {"userid": uid} for uid in attendees
+                    {"userid": uid, "readonly": 0} for uid in attendees
                 ],
                 "summary": summary,
                 "description": description,
                 "reminders": {
                     "is_remind": 1,
                     "remind_before_event_secs": 3600,
-                    "is_repeat": 1,
+                    "is_repeat": 0,
                     "repeat_type": 7
                 },
                 "location": location,
@@ -556,6 +551,42 @@ class QywxClient(_QywxBase):
         }
 
         return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/oa/schedule/add", params=_params)
+
+    def UpdateSchedule(self, organizer:str, schedule_id:str, start_time:int, end_time:int, attendees: list, summary: str, description:str, location:str):
+        """
+        更新日程
+        """
+        _params = {
+            "schedule": {
+                "organizer": organizer,
+                "schedule_id": schedule_id,
+                "start_time": start_time,
+                "end_time": end_time,
+                "attendees": [
+                    {"userid": uid, "readonly": 0} for uid in attendees
+                ],
+                "summary": summary,
+                "description": description,
+                "reminders": {
+                    "is_remind": 1,
+                    "remind_before_event_secs": 3600,
+                    "is_repeat": 0,
+                    "repeat_type": 7
+                },
+                "location": location,
+                # "cal_id": "wcjgewCwAAqeJcPI1d8Pwbjt7nttzAAA"
+            }
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/oa/schedule/update", params=_params)
+
+    def DeleteSchedule(self, schedule_id: str):
+        """
+        取消日程
+        """
+        _params = {
+            "schedule_id": schedule_id
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/oa/schedule/del", params=_params)
 
 if "__main__" == __name__:
     # _refreshAccessToken("wx1ac9c673f281add6", "GTTNCSIDw96JP0HqewrRwQ4Jw-7SpWfDAFJb4IoHNCg")

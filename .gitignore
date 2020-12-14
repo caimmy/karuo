@@ -107,4 +107,4 @@ venv.bak/
 raws
 
 webdemo.py
-.vscode
+.vscode/
