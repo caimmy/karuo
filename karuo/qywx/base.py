@@ -519,6 +519,44 @@ class QywxClient(_QywxBase):
 
     ######  工作日程相关
 
+    def test(self):
+        print("sadfsadf")
+
+    def CreateSchedule(self, agentid, organizer:str, start_time:int, end_time:int, attendees:list, summary:str, description:str, location:str):
+        """
+        创建日程
+        :param agentid
+        :param organizer str 组织者日程
+        :param start_time int 日程开始时间戳
+        :param end_time int 日程结束时间戳
+        :param attendees list 日程参与者列表
+        :param summary str 日程标题
+        :param description str 日程描述
+        :param location str 日程地址
+        """
+        _params = {
+            "schedule": {
+                "organizer": organizer,
+                "start_time": start_time,
+                "end_time": end_time,
+                "attendees": [
+                    {"userid": uid} for uid in attendees
+                ],
+                "summary": summary,
+                "description": description,
+                "reminders": {
+                    "is_remind": 1,
+                    "remind_before_event_secs": 3600,
+                    "is_repeat": 1,
+                    "repeat_type": 7
+                },
+                "location": location,
+                # "cal_id": "wcjgewCwAAqeJcPI1d8Pwbjt7nttzAAA"
+            }
+        }
+
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/oa/schedule/add", params=_params)
+
 if "__main__" == __name__:
     # _refreshAccessToken("wx1ac9c673f281add6", "GTTNCSIDw96JP0HqewrRwQ4Jw-7SpWfDAFJb4IoHNCg")
     # GetAccessToken("wx1ac9c673f281add6", "GTTNCSIDw96JP0HqewrRwQ4Jw-7SpWfDAFJb4IoHNCg")
@@ -529,4 +567,7 @@ if "__main__" == __name__:
     # print(client.UserList(2, 1, True))
     #print(client.DepartmentUpdate(4, name="2号上级"))
     # print(client.DepartmentDelete(5))
-    client.UploadTempMedia("image", "/data/duoneng_caimmy/duoneng/bundle/asserts/images/meeting_poster.png")
+    # client.UploadTempMedia("image", "/data/duoneng_caimmy/duoneng/bundle/asserts/images/meeting_poster.png")
+
+    result = client.CreateSchedule("", "caimmy", 1607997600, 1608001200, ["caimmy", "long"], "测试会议日程", "alsdkfjaslkdf asldfsadf拉丝机的弗拉sdf", "五楼会议室")
+    print(result)
