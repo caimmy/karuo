@@ -518,7 +518,7 @@ class QywxClient(_QywxBase):
 
 
     ######  工作日程相关
-    def CreateSchedule(self, organizer:str, start_time:int, end_time:int, attendees:list, summary:str, description:str, location:str):
+    def CreateSchedule(self, organizer:str, start_time:int, end_time:int, attendees:list, summary:str, description:str, location:str, remind_pre_sec:int=3600):
         """
         创建日程
         :param organizer str 组织者日程
@@ -528,6 +528,7 @@ class QywxClient(_QywxBase):
         :param summary str 日程标题
         :param description str 日程描述
         :param location str 日程地址
+        :param remind_pre_sec 提前多少秒通知
         """
         _params = {
             "schedule": {
@@ -541,7 +542,7 @@ class QywxClient(_QywxBase):
                 "description": description,
                 "reminders": {
                     "is_remind": 1,
-                    "remind_before_event_secs": 3600,
+                    "remind_before_event_secs": remind_pre_sec,
                     "is_repeat": 0,
                     "repeat_type": 7
                 },
@@ -552,7 +553,7 @@ class QywxClient(_QywxBase):
 
         return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/oa/schedule/add", params=_params)
 
-    def UpdateSchedule(self, organizer:str, schedule_id:str, start_time:int, end_time:int, attendees: list, summary: str, description:str, location:str):
+    def UpdateSchedule(self, organizer:str, schedule_id:str, start_time:int, end_time:int, attendees: list, summary: str, description:str, location:str, remind_pre_sec:int=3600):
         """
         更新日程
         """
@@ -569,7 +570,7 @@ class QywxClient(_QywxBase):
                 "description": description,
                 "reminders": {
                     "is_remind": 1,
-                    "remind_before_event_secs": 3600,
+                    "remind_before_event_secs": remind_pre_sec,
                     "is_repeat": 0,
                     "repeat_type": 7
                 },
