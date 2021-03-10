@@ -589,17 +589,125 @@ class QywxClient(_QywxBase):
         }
         return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/oa/schedule/del", params=_params)
 
-if "__main__" == __name__:
-    # _refreshAccessToken("wx1ac9c673f281add6", "GTTNCSIDw96JP0HqewrRwQ4Jw-7SpWfDAFJb4IoHNCg")
-    # GetAccessToken("wx1ac9c673f281add6", "GTTNCSIDw96JP0HqewrRwQ4Jw-7SpWfDAFJb4IoHNCg")
-    client = QywxClient("wx1ac9c673f281add6",
-                        "ghmdKl8bQZYS2cyXTTfk9rH4fnzDSBRqMwo0PFzManE")
-    # client.UserDelete("mardini")
-    # client.createDepartment("侧1")
-    # print(client.UserList(2, 1, True))
-    #print(client.DepartmentUpdate(4, name="2号上级"))
-    # print(client.DepartmentDelete(5))
-    # client.UploadTempMedia("image", "/data/duoneng_caimmy/duoneng/bundle/asserts/images/meeting_poster.png")
 
-    result = client.CreateSchedule("", "caimmy", 1607997600, 1608001200, ["caimmy", "long"], "测试会议日程", "alsdkfjaslkdf asldfsadf拉丝机的弗拉sdf", "五楼会议室")
-    print(result)
+    ### 微盘空间管理相关
+    def CreateDocSpace(self, user_id: str, spacename: str, authinfo: list):
+        """
+        创建微盘空间
+        """
+        _params = {
+            "userid": user_id,
+            "space_name": spacename
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/space_create", params=_params)
+
+    def RenameDocSpace(self, userid: str, spaceid: str, spacename: str):
+        '''
+        重命名空间
+        :param userid str 操作者编号
+        :param spaceid str 被重命名空间的编号
+        :param spacename str 调整后的空间名称
+        '''
+        _params = {
+            "userid": userid,
+            "spaceid": spaceid,
+            "space_name": spacename
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/space_rename", params=_params)
+
+    def DismissDocSpace(self, userid: str, spaceid: str):
+        '''
+        解散空间
+        :param userid str 操作者编号
+        :param spaceid str 需解散空间的编号
+        '''
+        _params = {
+            "userid": userid,
+            "spaceid": spaceid
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/space_dismiss", params=_params)
+    
+    def GetDocSpaceInfor(self, userid: str, spaceid: str):
+        '''
+        获取空间信息
+        :param userid str 操作者编号
+        :param spaceid str 空间编号
+        '''
+        _params = {
+            "userid": userid,
+            "spaceid": spaceid
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/space_info", params=_params)
+
+
+    ### 微文档管理
+    def GetDocFilesList(self, userid: str, spaceid: str, fatherid: str='', sort_type: int=6, start: int=0, limit: int=100):
+        '''
+        获取文件列表
+        '''
+        _father_id = fatherid if fatherid else spaceid
+        _params = {
+            "userid": userid,
+            "spaceid": spaceid,
+            "fatherid": _father_id,
+            "sort_type": sort_type,
+            "start": start,
+            "limit": limit
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/file_list", params=_params)
+
+    def UploadDocFile(self, userid: str, spaceid: str, filename: str, file_base64_content: str, fatherid: str=''):
+        '''
+        上传文件
+        :param userid str 操作者编号
+        :param spaceid str 文件存放的空间编号
+        :param filename str 文件名
+        :param file_base64_content str 文件内容的base64内容
+        :param fatherid str 目录名称
+        '''
+        _father_id = fatherid if fatherid else spaceid
+        _params = {
+            "userid": userid,
+            "spaceid": spaceid,
+            "fatherid": _father_id,
+            "file_name": filename,
+            "file_base64_content": file_base64_content
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/file_upload", params=_params)
+
+    def DeleteDocFile(self, userid: str, fileid: list):
+        '''
+        删除文件
+        :param userid str 操作者编号
+        :param fileid list[str] 被删除文件编号列表
+        '''
+        _params = {
+            "userid": userid,
+            "fileid": fileid
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/file_delete", params=_params)
+
+    def DeleteFileAccess(self, userid: str, fileid: str, auth_info: list):
+        '''
+        删除指定文件的指定人/部门
+        :param userid str 操作者编号
+        :param fileid str 目标文件编号
+        :param auth_info obj[] 被移除的成员信息
+        @auth_info :
+        "auth_info": [{
+            "type": 1,
+            "userid": "USERID1"
+        }, {
+            "type": 2,
+            "departmentid": DEPARTMENT_ID1    
+        }]
+        *** type	uint32	必填	成员类型 1:个人 2:部门
+        *** userid	string	根据type必填	成员userid,字符串 (type为1时填写)
+        *** departmentid	uint32	根据type必填	部门departmentid, 32位整型范围是[0, 2^32) (type为2时填写)
+        '''
+        _params = {
+            "userid": userid,
+            "fileid": fileid,
+            "auth_info": auth_info
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/file_acl_del", params=_params)
