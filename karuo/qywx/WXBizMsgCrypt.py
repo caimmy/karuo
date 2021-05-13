@@ -167,7 +167,7 @@ class Prpcrypt(object):
             print(e)
             return  ierror.WXBizMsgCrypt_DecryptAES_Error,None
         try:
-            pad = ord(plain_text.decode()[-1]) 
+            pad = plain_text[-1] 
             # 去掉补位字符串 
             #pkcs7 = PKCS7Encoder()
             #plain_text = pkcs7.encode(plain_text)   
