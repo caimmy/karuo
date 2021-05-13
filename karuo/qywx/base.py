@@ -18,6 +18,7 @@ import tempfile
 import requests
 import urllib
 import base64
+import re
 from enum import Enum
 from urllib.parse import urlencode
 from random import randint
@@ -534,6 +535,38 @@ class QywxClient(_QywxBase):
             _ret_media_id = ""
         return _ret_media_id
 
+    def DownloadTempMedia(self, media_id: str, store_path: str, ext_name: str=""):
+        """
+        下载微信临时文件
+        :param media_id str 资源文件编号
+        :param store_file str 暂存的本地文件fullpath
+        """
+        ret, msg = False, "gen"
+        
+        try:
+            if os.path.isdir(store_path):
+                _download_url = f"https://qyapi.weixin.qq.com/cgi-bin/media/get?access_token={self._getAccessToken()}&media_id={media_id}"
+                response = requests.get(_download_url, stream=True)
+                if response.ok:
+                    if ext_name:
+                        _ext_name = ext_name if ext_name.startswith(".") else ("." + ext_name)
+                    else:
+                        response_headers = dict(response.headers)
+                        ext_suggests = re.findall("(\.\w+)", response_headers.get("Content-disposition"))
+                        _ext_name = ext_suggests[0] if ext_suggests else ".data"
+                    store_file = f"{media_id}{_ext_name}"
+                    with open(store_file, 'ab') as wf:
+                        for chunk in response.iter_content(chunk_size=1024000):
+                            if chunk:
+                                wf.write(chunk)
+                        ret = True
+            else:
+                msg = "store_path invalid"
+        except Exception as e:
+            msg = str(e)
+        finally:
+            return ret, msg
+            
 
     ######  工作日程相关
     def CreateSchedule(self, organizer:str, start_time:int, end_time:int, attendees:list, summary:str, description:str, location:str, remind_pre_sec:int=3600):
