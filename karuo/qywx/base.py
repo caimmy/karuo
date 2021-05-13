@@ -17,6 +17,8 @@ import json
 import tempfile
 import requests
 import urllib
+import base64
+from enum import Enum
 from urllib.parse import urlencode
 from random import randint
 from .WXBizMsgCrypt import WXBizMsgCrypt, SHA1
@@ -152,6 +154,22 @@ class _QywxBase():
 
         return _params
 
+class DocSpaceACL(Enum):
+    '''
+    文档空间访问权限枚举
+    '''
+    READONLY    = 1
+    EDITABLE    = 2
+    PREVIEW     = 4
+
+class MicroDocumentType(Enum):
+    '''
+    微文档类型
+    '''
+    DIRECTORY   = 1     # 目录
+    DOC         = 3     # 微文档
+    EXCEL       = 4     # 表格
+    COLLECT     = 5     # 收集表
 
 class QywxClient(_QywxBase):
     """
@@ -553,6 +571,43 @@ class QywxClient(_QywxBase):
 
         return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/oa/schedule/add", params=_params)
 
+    def CreateScheduleComplex(self, organizer:str, start_time:int, end_time:int, attendees:list, summary:str, description:str, location:str, 
+        is_remaind=1, is_repeat=1, remind_before_event_secs=0, remind_repeat_type=7, remind_repeat_until=0):
+        """
+        创建日程
+        :param organizer str 组织者日程
+        :param start_time int 日程开始时间戳
+        :param end_time int 日程结束时间戳
+        :param attendees list 日程参与者列表
+        :param summary str 日程标题
+        :param description str 日程描述
+        :param location str 日程地址
+        :param remind_pre_sec 提前多少秒通知
+        """
+        _params = {
+            "schedule": {
+                "organizer": organizer,
+                "start_time": start_time,
+                "end_time": end_time,
+                "attendees": [
+                    {"userid": uid, "readonly": 0} for uid in attendees
+                ],
+                "summary": summary,
+                "description": description,
+                "reminders": {
+                    "is_remind": is_remaind,
+                    "remind_before_event_secs": remind_before_event_secs,
+                    "is_repeat": is_repeat,
+                    "repeat_type": remind_repeat_type,
+                    "repeat_until": remind_repeat_until
+                },
+                "location": location,
+                # "cal_id": "wcjgewCwAAqeJcPI1d8Pwbjt7nttzAAA"
+            }
+        }
+
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/oa/schedule/add", params=_params)
+
     def UpdateSchedule(self, organizer:str, schedule_id:str, start_time:int, end_time:int, attendees: list, summary: str, description:str, location:str, remind_pre_sec:int=3600):
         """
         更新日程
@@ -591,17 +646,31 @@ class QywxClient(_QywxBase):
 
 
     ### 微盘空间管理相关
-    def CreateDocSpace(self, user_id: str, spacename: str, authinfo: list):
+    # 创建微盘空间
+    def DocSpaceCreate(self, user_id: str, spacename: str, user_list: list, dep_list: list, defaultAuth=4):
         """
         创建微盘空间
+        :param defaultAuth int 默认权限 成员权限 1:可下载 2:可编辑 4:可预览（仅专业版企业可设置）
         """
+        _user_info_list = [{
+            "type": 1,
+            "userid": uid,
+            "auth": defaultAuth
+        } for uid in user_list]
+        _dep_info_list = [{
+            "type": 2,
+            "departmentid": did,
+            "auth": defaultAuth
+        } for did in dep_list]
         _params = {
             "userid": user_id,
-            "space_name": spacename
+            "space_name": spacename,
+            "auth_info": _user_info_list + _dep_info_list
         }
         return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/space_create", params=_params)
 
-    def RenameDocSpace(self, userid: str, spaceid: str, spacename: str):
+    ### 重命名微盘空间
+    def DocSpaceRename(self, userid: str, spaceid: str, spacename: str):
         '''
         重命名空间
         :param userid str 操作者编号
@@ -615,7 +684,8 @@ class QywxClient(_QywxBase):
         }
         return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/space_rename", params=_params)
 
-    def DismissDocSpace(self, userid: str, spaceid: str):
+    # 解散微盘空间
+    def DocSpaceDismiss(self, userid: str, spaceid: str):
         '''
         解散空间
         :param userid str 操作者编号
@@ -627,7 +697,8 @@ class QywxClient(_QywxBase):
         }
         return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/space_dismiss", params=_params)
     
-    def GetDocSpaceInfor(self, userid: str, spaceid: str):
+    # 获取微盘空间信息
+    def DocSpaceGetInfor(self, userid: str, spaceid: str):
         '''
         获取空间信息
         :param userid str 操作者编号
@@ -639,9 +710,68 @@ class QywxClient(_QywxBase):
         }
         return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/space_info", params=_params)
 
+    def DocSpaceAddACL(self, userid: str, spaceid: str, user_list: list, dep_list: list, auth_type: DocSpaceACL):
+        '''
+        增加文档空间ACL访问权限
+        '''
+        _user_info_list = [{
+            "type": 1,
+            "userid": uid,
+            "auth": auth_type.value
+        } for uid in user_list]
+        _dep_info_list = [{
+            "type": 2,
+            "departmentid": did,
+            "auth": defaultAuth.value
+        } for did in dep_list]
+        _params = {
+            "userid": userid,
+            "spaceid": spaceid,
+            "auth_info": _user_info_list + _dep_info_list
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/space_acl_add", params=_params)
+
+    def DocSpaceDeleteACL(self, userid: str, spaceid: str, user_list:list, dep_list: list):
+        '''
+        删除文档空间ACL访问权限
+        '''
+        _user_info_list = [{
+            "type": 1,
+            "userid": uid,
+        } for uid in user_list]
+        _dep_info_list = [{
+            "type": 2,
+            "departmentid": did,
+        } for did in dep_list]
+        _params = {
+            "userid": userid,
+            "spaceid": spaceid,
+            "auth_info": _user_info_list + _dep_info_list
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/space_acl_del", params=_params)
+
+    def DocSpaceSetting(self, userid: str, spaceid: str, add_member_only_admin: bool=True, enable_share_url: bool=False, share_url_no_approve:bool=False, share_url_no_approve_default_auth:DocSpaceACL=DocSpaceACL.READONLY):
+        '''
+        设置共享空间权限
+        :param userid str 操作者账号
+        :param spaceid str 空间编号
+        :param add_member_only_admin bool 是否仅管理员可改变设置
+        :param enable_share_url bool 是否启用成员邀请链接
+        :param share_url_no_approve bool 是否通过链接加入空间无需审批
+        :param share_url_no_approve_default_auth int 邀请链接默认权限 
+        '''
+        _params = {
+            "userid": userid,
+            "spaceid": spaceid,
+            "add_member_only_admin": add_member_only_admin,
+            "enable_share_url": enable_share_url,
+            "share_url_no_approve": share_url_no_approve,
+            "share_url_no_approve_default_auth": share_url_no_approve_default_auth.value
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/space_setting", params=_params)
 
     ### 微文档管理
-    def GetDocFilesList(self, userid: str, spaceid: str, fatherid: str='', sort_type: int=6, start: int=0, limit: int=100):
+    def DocSpaceGetFilesList(self, userid: str, spaceid: str, fatherid: str='', sort_type: int=6, start: int=0, limit: int=100):
         '''
         获取文件列表
         '''
@@ -656,9 +786,9 @@ class QywxClient(_QywxBase):
         }
         return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/file_list", params=_params)
 
-    def UploadDocFile(self, userid: str, spaceid: str, filename: str, file_base64_content: str, fatherid: str=''):
+    def DocSpaceUploadFileContent(self, userid: str, spaceid: str, filename: str, file_base64_content: str, fatherid: str=''):
         '''
-        上传文件
+        按内容上传文件
         :param userid str 操作者编号
         :param spaceid str 文件存放的空间编号
         :param filename str 文件名
@@ -675,7 +805,19 @@ class QywxClient(_QywxBase):
         }
         return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/file_upload", params=_params)
 
-    def DeleteDocFile(self, userid: str, fileid: list):
+    def DocSpaceUploadFile(self, userid: str, spaceid: str, filepath: str, filename:str, fatherid: str=''):
+        '''
+        上传文件
+        '''
+        try:
+            with open(filepath, 'rb') as f:
+                _c = f.read()
+                _content = base64.b64encode(_c)
+                return self.DocSpaceUploadFileContent(userid, spaceid, filename, _content.decode("utf-8"), fatherid)
+        except Exception as e:
+            return False, {'errcode': -1, 'errmsg': str(e)}
+
+    def DocSpaceDeleteFile(self, userid: str, fileid: list):
         '''
         删除文件
         :param userid str 操作者编号
@@ -687,7 +829,7 @@ class QywxClient(_QywxBase):
         }
         return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/file_delete", params=_params)
 
-    def DeleteFileAccess(self, userid: str, fileid: str, auth_info: list):
+    def DocSpaceDeleteFileAccess(self, userid: str, fileid: str, auth_info: list):
         '''
         删除指定文件的指定人/部门
         :param userid str 操作者编号
@@ -711,3 +853,26 @@ class QywxClient(_QywxBase):
             "auth_info": auth_info
         }
         return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/file_acl_del", params=_params)
+    
+    def DocSpaceCreateMicroDocument(self, userid: str, spaceid: str, filename: str, filetype: MicroDocumentType, fatherid=''):
+        '''
+        创建微文档
+        '''
+        _params = {
+            "userid": userid,
+            "spaceid": spaceid,
+            "fatherid": fatherid if fatherid else spaceid,
+            "file_type": filetype.value,
+            "file_name": filename
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/file_create", params=_params)
+
+    def DocSpaceFileShareUrl(self, userid: str, fileid: str):
+        """
+        获取文件的分享链接
+        """
+        _params = {
+            "userid": userid,
+            "fileid": fileid
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/file_share", params=_params)
