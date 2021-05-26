@@ -19,6 +19,8 @@ import requests
 import urllib
 import base64
 import re
+import random
+from hashlib import sha1
 from enum import Enum
 from urllib.parse import urlencode
 from random import randint
@@ -96,6 +98,52 @@ class _QywxBase():
             self._access_token, self._token_exptm = GetAccessToken(
                 self._corpid, self._corpsecret)
         return self._access_token
+
+    def getJsapi_ticket(self, agent_config:bool):
+        '''
+        获取应用的jsapi_token
+        :param agent_config 是否是 agentconfig注入方式
+        '''
+        ret_token = None
+        try:
+            _tmppath = tempfile.gettempdir()
+            if not os.path.isdir(_tmppath):
+                raise Exception("template path is invalid")
+            if agent_config:
+                _cache_jsapi_token_file = os.path.join(_tmppath, f"jsapi_agent_config_{self._corpid}_{self._corpsecret}.bin")
+            else:
+                _cache_jsapi_token_file = os.path.join(_tmppath, f"jsapi_{self._corpid}_{self._corpsecret}.bin")
+            if os.path.isfile(_cache_jsapi_token_file):
+                with open(_cache_jsapi_token_file, "rb") as f:
+                    _cached_data = pickle.load(f)
+                    if isinstance(_cached_data, dict) and "exptm" in _cached_data and _cached_data.get("exptm") > int(time.time()):
+                        ret_token = _cached_data.get("ticket")
+            if not ret_token:
+                # 没有从缓存中得到有效token，重新刷新token
+                if agent_config:
+                    _token_url = f"https://qyapi.weixin.qq.com/cgi-bin/ticket/get?access_token={self._getAccessToken()}&type=agent_config"
+                else:
+                    _token_url = f"https://qyapi.weixin.qq.com/cgi-bin/get_jsapi_ticket?access_token={self._getAccessToken()}"
+                req_response = requests.get(_token_url)
+                if req_response.ok:
+                    req_data = req_response.json()
+                    if isinstance(req_data, dict) and "ticket" in req_data and 0 == req_data.get("errcode"):
+                        ret_token = req_data.get("ticket")
+                        if "expires_in" in req_data and req_data["expires_in"] > 600:
+                            # 写入缓存
+                            req_data["exptm"] = int(time.time()) + (req_data["expires_in"] - 600)
+                            with open(_cache_jsapi_token_file, "wb") as wf:
+                                pickle.dump(req_data, wf)
+
+        except Exception as e:
+            print(e)
+            ret_token = None
+        return ret_token
+
+    def getNonceStr(self):
+        _s_seeds = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'H', 'I', 'J', 'K', 'L', 'M', 'N', '1', '2', '3', '4', '5', '6', '7', '8']
+        return "".join(random.sample(_s_seeds, 8))
+
 
     def postRequest(self, url: str, params: dict):
         """
@@ -909,3 +957,54 @@ class QywxClient(_QywxBase):
             "fileid": fileid
         }
         return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/wedrive/file_share", params=_params)
+
+    def SetWorkbenchTemplate(self, agent_id, template_type: str, data: dict, replace_user_data: bool = False):
+        """
+        设置工作台自定义展示模板
+        :template_type 模版类型，目前支持的自定义类型包括 “keydata”、 “image”、 “list”、 “webview” 。若设置的type为 “normal”,则相当于从自定义模式切换为普通宫格或者列表展示模式
+        """
+        _params = {
+            "agentid": agent_id,
+            "type": template_type,
+            template_type: data,
+            "replace_user_data": replace_user_data
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/agent/set_workbench_template", params=_params)
+
+    def GetWorkbenchTemplate(self, agent_id):
+        """
+        获取工作台自定义展示模板
+        """
+        _params = {
+            "agentid": agent_id
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/agent/get_workbench_template", params=_params)
+
+    def SetWorkbenchData(self,agent_id, userid: str, template_type: str, data: dict):
+        """
+        设置用户工作台自定义数据
+        """
+        _params = {
+            "agentid": agent_id,
+            "userid": userid,
+            "type": template_type,
+            template_type: data
+        }
+        return self.postRequest("https://qyapi.weixin.qq.com/cgi-bin/agent/set_workbench_data", params=_params)
+
+    def getJsapi_signature(self, url, agent_config=True):
+        """
+        获取js-sdk是用权限的签名
+        :param agent_config 是否是agentConfig注入模式
+        """
+        _ns = self.getNonceStr()
+        _ts = int(time.time())
+        _before = f"jsapi_ticket={self.getJsapi_ticket(agent_config)}&noncestr={_ns}&timestamp={_ts}&url={url}"
+        s1 = sha1()
+        s1.update(_before.encode("utf-8"))
+        return {
+            "noncestr": _ns,
+            "timestamp": _ts,
+            "url": url,
+            "signature": s1.hexdigest()
+            }

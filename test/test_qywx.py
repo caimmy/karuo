@@ -12,6 +12,8 @@ _proj_root = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 print(_proj_root)
 sys.path.append(_proj_root)
 
+from pprint import pprint
+
 import unittest
 from karuo.qywx.base import QywxClient, DocSpaceACL, MicroDocumentType
 
@@ -72,6 +74,43 @@ class TestQywxClient(unittest.TestCase):
         "来看数据地方卢卡斯地方卢卡斯蝶恋蜂狂是按地方撒地方", "", 1, 1, 0, 7, _end_time)
         print(result)
 
+    def _tTestSetWorkbenchTemplate(self):
+        # secret_1000020 = "nbraJNc9g2ONPpoZqoFYO-xGcrI6KoJX4BZXvS835sk"
+
+        _data = {
+            "items":[
+                {
+                    "key":"投标中",
+                    "data":"1",
+                    "jump_url":"http://www.qq.com",
+                    "pagepath":"pages/index"
+                },
+                {
+                    "key":"已签合同",
+                    "data":"2",
+                    "jump_url":"http://www.baidu.com",
+                    "pagepath":"pages/index"
+                },
+                {
+                    "key":"工程实施",
+                    "data":"3",
+                    "jump_url":"http://www.guoxue.com",
+                    "pagepath":"pages/index"
+                },
+                {
+                    "key":"工程结项",
+                    "data":"90",
+                    "jump_url":"http://www.kingsoft.com",
+                    "pagepath":"pages/index"
+                }
+            ]
+        }
+        qywx_client = QywxClient("wx1ac9c673f281add6", "nbraJNc9g2ONPpoZqoFYO-xGcrI6KoJX4BZXvS835sk")
+        # rets = qywx_client.SetWorkbenchTemplate(1000020, "keydata", _data)
+        rets = qywx_client.SetWorkbenchData(1000020, "caimmy", "keydata", _data)
+        pprint(rets)
+
+
     def testSingleMethod(self):
         self._tDocGetShareurl()
         # client = QywxClient("wx1ac9c673f281add6",
@@ -106,6 +145,6 @@ class TestQywxClient(unittest.TestCase):
 
 if "__main__" == __name__:
     suite = unittest.TestSuite()
-    suite.addTest(TestQywxClient("_tCalendarRobot"))
+    suite.addTest(TestQywxClient("_tTestSetWorkbenchTemplate"))
     runner = unittest.TextTestRunner()
     runner.run(suite)

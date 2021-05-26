@@ -108,3 +108,5 @@ raws
 
 webdemo.py
 .vscode/
+
+local_flask_templates/
