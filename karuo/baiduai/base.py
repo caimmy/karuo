@@ -10,6 +10,7 @@ Change Activity:
 
 -------------------------------------------------
 """
+from base64 import b64decode, b64encode
 import os
 import json
 import time
@@ -17,7 +18,7 @@ import pickle
 import tempfile
 from urllib.parse import urlencode
 import requests
-
+from ..datadef import KaruoResult
 from karuo.baiduai import APP_KEY, APP_SECRET
 
 _, token_cache_file = tempfile.mkstemp(prefix="token_", suffix=".bin")
@@ -88,11 +89,12 @@ class ApiRequestBase():
         """
         _url = f"{url}?access_token={self._getAccessToken()}"
         response = requests.post(_url, data=params, headers={'content-type': 'application/x-www-form-urlencoded'})
-        return self.parseApiRequestResult(response)
+        return response
 
-    def parseApiRequestResult(self, response: requests.Response):
+
+    def parseFaceApiRequestResult(self, response: requests.Response):
         """
-        对请求结果进行解析
+        对人脸类API请求结果进行解析
         可以被重写
         :param response:
         :return: bool 是否接受人脸的一致性评价, result: dict
@@ -115,3 +117,17 @@ class ApiRequestBase():
             except Exception:
                 result = False
         return result
+
+    def base64FileContent(self, filepath: str):
+        """
+        把文件内容base64化
+        :return str
+        """
+        ret_content = None
+        try:
+            with open(filepath, "rb") as rf:
+                ret_content = b64encode(rf.read()).decode("utf-8")
+        except Exception as e:
+            print(e)
+
+        return ret_content
